@@ -185,6 +185,172 @@ f(x) = \text{SiLU}(W_1 x) \odot W_2 x
 
 
 ---
+## Loss
+Loss measures how wrong a model is compared to what the right solution is. This enables us to later let the model learn through backpropagation.
+
+
+Loss functions measure how wrong the model's predictions are. During training, the
+optimizer tries to minimize this value by adjusting the weights. The choice of loss
+function depends entirely on the task — regression, binary classification, or
+multi-class classification. A wrong choice of loss function will cause the network
+to optimize for the wrong thing entirely, regardless of how good the architecture is.
+
+---
+
+### MSE — Mean Squared Error
+
+The default loss for regression tasks. Computes the average of the squared differences
+between predictions and true values. Squaring does two things: it makes all errors
+positive, and it penalises large errors disproportionately — a prediction that is 10
+units off contributes 100 to the loss, while one that is 2 units off contributes only
+4. This makes MSE sensitive to outliers.
+```math
+L = \frac{1}{n}\sum_{i=1}^{n}(y_i - \hat{y}_i)^2
+```
+
+Gradient with respect to each prediction:
+```math
+\frac{\partial L}{\partial \hat{y}_i} = \frac{2}{n}(\hat{y}_i - y_i)
+```
+
+---
+
+### MAE — Mean Absolute Error
+
+Also used for regression. Instead of squaring the errors it takes the absolute value,
+which means all errors are penalised equally regardless of size. This makes MAE more
+robust to outliers than MSE — a single extreme prediction does not dominate the loss.
+The downside is that the gradient is constant (always +1 or -1) which can cause the
+optimizer to overshoot near the minimum.
+```math
+L = \frac{1}{n}\sum_{i=1}^{n}|y_i - \hat{y}_i|
+```
+
+Gradient with respect to each prediction:
+```math
+\frac{\partial L}{\partial \hat{y}_i} = \frac{1}{n} \cdot \text{sign}(\hat{y}_i - y_i)
+```
+
+---
+
+### Huber Loss
+
+A hybrid of MSE and MAE. For errors smaller than a threshold $\delta$ it behaves like
+MSE — smooth and differentiable near zero. For errors larger than $\delta$ it behaves
+like MAE — linear and robust to outliers. This gives you the best of both: smooth
+gradients near the minimum and outlier resistance far from it. The threshold $\delta$
+is a hyperparameter you set before training.
+```math
+L_\delta(y, \hat{y}) = \begin{cases} \frac{1}{2}(y - \hat{y})^2 & \text{if } |y - \hat{y}| \leq \delta \\ \delta\left(|y - \hat{y}| - \frac{1}{2}\delta\right) & \text{otherwise} \end{cases}
+```
+
+---
+
+### BCE — Binary Cross-Entropy
+
+The standard loss for binary classification — tasks where the output is one of two
+classes. The model outputs a single probability $\hat{y} \in (0,1)$ via a sigmoid
+activation. BCE measures how far that probability is from the true label (0 or 1).
+When the true label is 1, the loss is $-\log(\hat{y})$ — it heavily penalises the
+model for predicting a low probability when the answer was yes. When the true label
+is 0, the loss is $-\log(1-\hat{y})$.
+```math
+L = -\frac{1}{n}\sum_{i=1}^{n}\left[y_i \log(\hat{y}_i) + (1 - y_i)\log(1 - \hat{y}_i)\right]
+```
+
+Gradient with respect to each prediction:
+```math
+\frac{\partial L}{\partial \hat{y}_i} = -\frac{1}{n}\left(\frac{y_i}{\hat{y}_i} - \frac{1 - y_i}{1 - \hat{y}_i}\right)
+```
+
+---
+
+### CCE — Categorical Cross-Entropy
+
+The standard loss for multi-class classification — tasks where the output is one of
+$C$ classes. The model outputs a probability distribution over all classes via softmax.
+CCE measures how far that distribution is from the true distribution, which is a
+one-hot vector (1 for the correct class, 0 for all others). In practice only the
+log probability of the correct class contributes to the loss — all other terms are
+multiplied by zero.
+```math
+L = -\frac{1}{n}\sum_{i=1}^{n}\sum_{c=1}^{C} y_{ic} \log(\hat{y}_{ic})
+```
+
+Simplified for one-hot labels where only the true class $c^*$ is 1:
+```math
+L = -\frac{1}{n}\sum_{i=1}^{n} \log(\hat{y}_{i,c^*})
+```
+
+---
+
+### KL Divergence — Kullback-Leibler Divergence
+
+Measures how different one probability distribution is from another. Not typically
+used as a training loss for basic classification, but essential in variational
+autoencoders, knowledge distillation, and reinforcement learning from human feedback.
+$P$ is the true distribution and $Q$ is the model's predicted distribution. It is
+asymmetric — $KL(P \| Q) \neq KL(Q \| P)$ — which means the order you pass the
+distributions in matters.
+```math
+KL(P \| Q) = \sum_{x} P(x) \log\frac{P(x)}{Q(x)}
+```
+
+Properties:
+```math
+KL(P \| Q) \geq 0 \quad \text{always}
+```
+```math
+KL(P \| Q) = 0 \quad \text{if and only if } P = Q
+```
+
+---
+
+### Focal Loss
+
+A modification of BCE designed for severely imbalanced datasets — for example, object
+detection where 99% of image regions contain no object. Standard BCE treats every
+example equally, so the model gets overwhelmed by the easy majority class and ignores
+the rare minority class. Focal loss down-weights easy examples by multiplying BCE by
+$(1 - \hat{y})^\gamma$. When the model is already confident and correct, this factor
+is near zero and the loss contribution is tiny. Hard, misclassified examples dominate
+training instead.
+```math
+L = -\frac{1}{n}\sum_{i=1}^{n}(1 - \hat{y}_i)^\gamma \left[y_i \log(\hat{y}_i) + (1 - y_i)\log(1 - \hat{y}_i)\right]
+```
+
+Where $\gamma$ (gamma) is the focusing parameter, typically set to 2.
+
+---
+
+### Contrastive Loss
+
+Used for training embedding models. Rather than predicting a class, the model learns
+to map similar inputs close together and dissimilar inputs far apart in embedding space.
+$D$ is the Euclidean distance between two embeddings, $y$ is 1 if the pair is similar
+and 0 if dissimilar, and $m$ is a margin — dissimilar pairs only contribute to the
+loss if they are closer than the margin.
+```math
+L = \frac{1}{n}\sum_{i=1}^{n} y_i D_i^2 + (1 - y_i)\max(0, m - D_i)^2
+```
+
+---
+
+### Quick Reference
+
+| Loss | Task | Output activation |
+|---|---|---|
+| MSE | Regression | None (linear) |
+| MAE | Regression, robust to outliers | None (linear) |
+| Huber | Regression, outliers present | None (linear) |
+| BCE | Binary classification | Sigmoid |
+| CCE | Multi-class classification | Softmax |
+| KL Divergence | Distillation, VAEs, RLHF | Softmax |
+| Focal | Imbalanced classification | Sigmoid |
+| Contrastive | Embedding / similarity learning | L2 normalisation |
+
+
+--- 
 ## Backpropagation
 This is the training method we will be using. This method takes the partial derivative of the loss with regards to each weight, and adjusts the weight according to this gradient multiplied by the learning rate:
 
@@ -201,3 +367,6 @@ w_{i}=w_{i}-\frac{\partial loss}{\partial w_{i}} \times \eta
 
 The goal in this repo is to make a basic dense neural network that trains to fit a graph of $ y=2x , y=x^{2} , y=log(x) $
 At that point, I would then try to find a real world problem to solve with this (not likely though).
+
+
+For ease of coding, we shall use ReLU for activation, MSE for loss, and pure gradient descent for the Backpropagation, as I donno how to make an optimiser, or how exactly an optimiser works :O 
