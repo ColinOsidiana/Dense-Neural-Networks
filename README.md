@@ -365,7 +365,18 @@ w_{i}=w_{i}-\frac{\partial loss}{\partial w_{i}} \times \eta
 ---
 ## The plan
 
-The goal in this repo is to make a basic dense neural network that trains to fit a graph of $ y=2x , y=x^{2} , y=log(x) $
+The goal in this repo is to make a basic dense neural network that trains to fit a graph of 
+
+```
+```
+```math
+y=2x 
+y=x^{2} 
+y=log(x) 
+
+```
+
+
 At that point, I would then try to find a real world problem to solve with this (not likely though).
 
 
