@@ -181,3 +181,20 @@ f(x) = \text{SiLU}(W_1 x) \odot W_2 x
 | GELU | $\approx(-0.17, \infty)$ | Transformer hidden layers |
 | SiLU | $\approx(-0.28, \infty)$ | Modern vision models, gating |
 | SwiGLU | $(-\infty, \infty)$ | LLM feedforward layers |
+
+
+
+---
+## Backpropagation
+This is the training method we will be using. This method takes the partial derivative of the loss with regards to each weight, and adjusts the weight according to this gradient multiplied by the learning rate:
+
+For a certain weight:
+$$ w_{i}=w_{i}-\frac{\partial loss}{\partial w_{i}} \times \eta $$
+
+
+
+---
+## The plan
+
+The goal in this repo is to make a basic dense neural network that trains to fit a graph of $ y=2x , y=x^{2} , y=log(x) $
+At that point, I would then try to find a real world problem to solve with this (not likely though).
