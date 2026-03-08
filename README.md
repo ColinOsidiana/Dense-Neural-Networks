@@ -189,7 +189,10 @@ f(x) = \text{SiLU}(W_1 x) \odot W_2 x
 This is the training method we will be using. This method takes the partial derivative of the loss with regards to each weight, and adjusts the weight according to this gradient multiplied by the learning rate:
 
 For a certain weight:
-$$ w_{i}=w_{i}-\frac{\partial loss}{\partial w_{i}} \times \eta $$
+```math 
+w_{i}=w_{i}-\frac{\partial loss}{\partial w_{i}} \times \eta
+```
+
 
 
 
