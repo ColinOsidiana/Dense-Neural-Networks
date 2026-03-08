@@ -25,5 +25,5 @@ The activation functions can vary depending on the need, but just mostly act as 
 
 The final formula of a neuron looks something like this.
 
-$${}\large y= activation((\sum_{i=0}^{n} x_{i}\cdot w_{i})+b) }$$
+$${\large y= activation((\sum_{i=0}^{n} x_{i}\cdot w_{i})+b) }$$
 
