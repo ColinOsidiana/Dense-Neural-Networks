@@ -372,11 +372,13 @@ The goal in this repo is to make a basic dense neural network that trains to fit
 ```math
 y=2x
 
-
+```
+```math 
 
 y=x^{2}
 
-
+```
+```math
 
 y=log(x) 
 
