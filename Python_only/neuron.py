@@ -50,6 +50,22 @@ class ReLU:
                 self.outputs.append(i)
             else:
                 self.outputs.append(0)
+    def derive(self):
+        self.derivatives=[]
+        for i in self.outputs:
+            if i > 0:
+                self.derivatives.append(1)
+            else:
+                self.derivatives.append(0)
+
+
+class MSE_loss:
+    def forward(self, predicted, expected):
+        self.loss=[]
+        for ex,pre in zip(expected,predicted):
+            self.loss.append((ex-pre)**2)
+
+
 
 # testing individual layers
 '''
@@ -69,10 +85,17 @@ class net:
                 self.layers.append(layer(num_inputs, layer_dims[i]))
             else:
                 self.layers.append(layer(layer_dims[i-1], layer_dims[i]))
+        self.weights=[]
+        self.biases=[]
 
+        for i in self.layers:
+            self.weights.append(i.weights)
+            self.biases.append(i.biases)
     def forward(self, inputs):
+
         self.buffer=inputs
         for i in self.layers:
+
             i.forward(self.buffer)
             if i == self.layers[-1]:
                 self.buffer=i.outputs
@@ -82,10 +105,47 @@ class net:
                 self.buffer=activation.outputs
 
         self.outputs=self.buffer 
+    def train(self, inputs, expected):
 
-net_inputs=[1,2]
+        self.forward(inputs)
+        self.predictions=self.outputs
+        self.expected=expected
+        self.loss=MSE_loss()
+        self.loss.forward(self.predictions, self.expected)
+        self.lossresult=self.loss.loss
+        
+# test if feedforward of neuron is working
+'''
+net_inputs=[1]
 layerdims=[3,5,1]
 net1=net(3, layerdims)
 net1.forward(net_inputs)
 print(net1.outputs)
+print(net1.weights)
+print(net1.biases)
+'''
 
+
+
+
+
+# create a dataset
+size=100
+dataset=[]
+
+# y=2x
+
+for i in range(size):
+    x=[rand.randrange(-100,100)]
+    y=[2*x[0]]
+    dataset.append([x,y])
+#print(dataset)
+
+layerdims=[3,5,2,1]
+net1=net(1, layerdims)
+
+net1.train(*dataset[1])
+
+print(net1.predictions)
+print(net1.expected)
+print(net1.lossresult)
