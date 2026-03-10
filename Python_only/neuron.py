@@ -12,7 +12,7 @@ class neuron:
     def __init__(self, num_inputs):
         
         # biases are initialised at 0 by convention cause weights are already randomised
-        self.bias=1
+        self.bias=0
         self.weights=[]
         for i in range(num_inputs):
             # Why are we using gaussian? because for ReLU, random distribution of weights is optimally normal distribution around zero
@@ -79,7 +79,8 @@ class MSE_loss:
     def derive(self, predicted, expected):
         self.gradient=0
         for ex,pre in zip(expected,predicted):
-            self.gradient+=(2*(ex-pre))
+            # remember, the derivative is always y-hat - y. it determines the direction in which gradients move
+            self.gradient+=(2*(pre-ex))
         self.gradient=self.gradient/len(predicted)
        
 
@@ -152,96 +153,73 @@ class net:
 
 
     def train(self, inputs, expected):
-        
-       
+        self.predictions = self.forward2(inputs)
+        self.loss = MSE_loss()
+        print(self.predictions, expected)
+        self.loss.forward(self.predictions, expected)
+        self.lossresult = self.loss.loss
 
-        self.predictions=self.forward2(inputs)
-        print(expected)
-        print(self.predictions)
-        self.expected=expected
-        self.loss=MSE_loss()
-        self.loss.forward(self.predictions, self.expected)
-        self.lossresult=self.loss.loss
-        print(self.lossresult)
+        # upstream_deltas starts as [1] for output layer
+        upstream_deltas = [1] * len(self.layers[-1].weights)
 
-        self.wprevderiv=[]
-        self.bprevderiv=[]
-        self.working=[]
-        # range(lastindex, stop_before, step)
-        for i in range(len(self.layers)-1, -1, -1):
-            print("layer: ",i+1," ,start:", self.dimensions[i], "neuron(s)")
-            layer=self.layers[i]
-            weights=layer.weights
-            biases=layer.biases
-            act=ReLU()
-            wbufferderiv=[]
-            bbufferderiv=[]
-            lossderiv=1
-            actderiv=[]
-            self.working=self.results2[i]
-            for j in self.working:
-                act.derive(self.working)
-                actderiv=act.derivatives
+        for i in range(len(self.layers) - 1, -1, -1):
+            layer = self.layers[i]
+            weights = layer.weights
+            biases = layer.biases
 
+        # get inputs that fed into this layer
+            if i == 0:
+                layer_inputs = inputs
+            else:
+                layer_inputs = self.results2[i - 1]
 
-            # ensures lossderiv does not affect anything unless on final layer
-            if i==(len(self.layers)-1):
-                self.loss.derive(self.predictions, self.expected)
+        # get activation derivatives for this layer
+            act = ReLU()
+            act.derive(self.results2[i])
+            actderiv = act.derivatives
 
-                # ensures last layer is not treated as if it has activation
-                for u in actderiv:
-                    u=1
-                lossderiv=self.loss.gradient
+        # output layer has no activation — override
+            if i == len(self.layers) - 1:
+                actderiv = [1] * len(actderiv)
+                self.loss.derive(self.predictions, expected)
+                loss_grad = self.loss.gradient
+            else:
+                loss_grad = 1
 
-                # ensures previous derivative does not affect last layer 
-                for m in range(len(weights)):
-                    yup=[]
-                    for n in range(len(weights[m])):
-                        yup.append(1)
-                    self.bprevderiv.append(1)
-                    self.wprevderiv.append(yup)
+            # compute delta for each neuron in this layer
+        # delta_k = loss_grad * actderiv[k] * upstream_deltas[k]
+            deltas = []
             for k in range(len(weights)):
-                yeah=[]
+                delta = loss_grad * actderiv[k] * upstream_deltas[k]
+                deltas.append(delta)
+    
+        # compute next upstream_deltas for the layer below
+        # each neuron j in layer i-1 receives gradients from all neurons k in layer i
+        # upstream_delta[j] = sum over k of (delta[k] * weights[k][j])
+            if i > 0:
+                next_upstream = []
+                for j in range(len(layer_inputs)):
+                    total = 0
+                    for k in range(len(weights)):
+                        total += deltas[k] * weights[k][j]
+                    next_upstream.append(total)
+                upstream_deltas = next_upstream
+
+        # update weights and biases
+            for k in range(len(weights)):
                 for l in range(len(weights[k])):
+                    wderivative = deltas[k] * layer_inputs[l]
+                    weights[k][l] -= self.lr * wderivative
+                bderivative = deltas[k] * 1
+                biases[k] -= self.lr * bderivative
 
-                    
-                    wderivative=lossderiv * actderiv[k] * weights[k][l] * self.wprevderiv[0][k]
-
-                    yeah.append(wderivative)
-                    weights[k][l]-=self.lr*wderivative
-                bderivative=lossderiv*actderiv[k]*1*self.wprevderiv[0][k]
-
-                biases[k]-=self.lr*bderivative
-
-
-                wbufferderiv.append(yeah)
-                bbufferderiv.append(bderivative)
-
-            # update the derivatives buffers
-
-            self.bprevderiv=bbufferderiv
-            self.wprevderiv=wbufferderiv
-
-            # update weights, biases
-            layer.weights=weights
-            layer.biases=biases
-
-            
-
-
-            print("layer: ",i+1," ,done:", self.dimensions[i], "neuron(s)")
-
-        self.predictions2=self.forward2(inputs)
-        self.loss.forward(self.predictions2, self.expected)
-        self.lossresult2=self.loss.loss
+            layer.weights = weights
+            layer.biases = biases
+        print(self.forward2(inputs))
         print(expected)
-        print(self.predictions)
-        print(self.predictions2)
-        print(self.lossresult)
-        print(self.lossresult2)
     def repeatedtrain(self, inputs, expected, epochs):
         for i in range(epochs):
-            print("epoch: ",0)
+            print("epoch: ",i)
             self.train(inputs,expected)
 
 
