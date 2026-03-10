@@ -151,7 +151,7 @@ class net:
         return self.outputs2 
 
 
-
+'''
     def train(self, inputs, expected):
         self.predictions = self.forward2(inputs)
         self.loss = MSE_loss()
@@ -223,7 +223,7 @@ class net:
             self.train(inputs,expected)
 
 
-
+'''
 
 
 
