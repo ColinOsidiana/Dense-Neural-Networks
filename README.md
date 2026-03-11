@@ -1,4 +1,4 @@
-# DENSE NEURAL NETWORKS
+# DENSE - NEURAL NETWORKS
 
 ---
 ## What is it?
