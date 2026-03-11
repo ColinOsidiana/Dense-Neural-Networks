@@ -76,12 +76,14 @@ class MSE_loss:
         self.loss=0
         for ex,pre in zip(expected,predicted):
             self.loss+=((ex-pre)**2)
+        return self.loss
     def derive(self, predicted, expected):
         self.gradient=0
         for ex,pre in zip(expected,predicted):
             # remember, the derivative is always y-hat - y. it determines the direction in which gradients move
             self.gradient+=(2*(pre-ex))
         self.gradient=self.gradient/len(predicted)
+        return self.gradient
        
 
 
@@ -96,9 +98,10 @@ print(layer1.weights)
 print(layer1.biases)
 '''
 class net:
-    def __init__(self, num_inputs, layer_dims, lr):
+    def __init__(self, num_inputs, layer_dims, lossfn, activationfn, lr):
         self.dimensions=layer_dims
         self.layers=[]
+        self.actfn=activationfn
         for i in range(len(layer_dims)):
 
             if i==0:
@@ -107,13 +110,17 @@ class net:
                 self.layers.append(layer(layer_dims[i-1], layer_dims[i]))
         self.weights=[]
         self.biases=[]
+        self.lossfn=lossfn
         self.lr=lr 
 
 
         for i in self.layers:
             self.weights.append(i.weights)
             self.biases.append(i.biases)
-    def forward(self, inputs):
+          
+#comment out previous forward functions
+'''
+ def forward(self, inputs):
         self.results=[]
         self.buffer=inputs
         for i in self.layers:
@@ -132,11 +139,15 @@ class net:
                 self.results.append(self.buffer)
 
         self.outputs=self.buffer
-    def forward2(self, inputs):
+'''
+
+    def forward(self, inputs):
         self.buff=inputs
-        self.results2=[]
+        self.results=[]
+        
         for weights, biases in zip(self.weights, self.biases):
             out=[]
+            
             
             for w,b in zip(weights,biases):
                 z=0
@@ -144,9 +155,11 @@ class net:
                 for m, x in zip(w, self.buff):
                     z+=m*x 
                 z+=b 
+                if weights!= self.weights[-1]:
+                    z=self.actfn.forward(z)
                 out.append(z)
             self.buff=out
-            self.results2.append(out)
+            self.results.append(out)
         self.outputs2=self.buff
         return self.outputs2 
 
@@ -225,6 +238,30 @@ class net:
 
 '''
 
+    def train(self, inputs, expected):
+        predicted=self.forward(inputs)
+        # initialises loss
+        loss=self.lossfn.forward(predicted, expected)
+        # initialises derivative buffers as the loss derivative 
+        weightderivatives=self.lossfn.derive(predicted, expected)
+        # this is just as the previous comment said, but technically not the right way to do it
+        biasderivatives=[weightderivatives]*self.dimensions[-1]
+
+        for i in range(len(self.layers)-1, -1, -1):
+            cweights=self.weights[i]
+            cbias=self.biases[i]
+            coutputs=self.results[i]
+            aderivative=[]
+            # checks if  current layer is last layer 
+            for s in coutputs:
+                if i == (len(self.layers)-1):
+                #if last layyer, all activation derivatives are set to 1, basically not affecting anything
+                # else the derivative is the respective derivative of the activation function
+                    aderivative.append(1)
+                else:
+                    aderivative.append(self.actfn.derive(s))
+            
+
 
 
 
@@ -268,7 +305,9 @@ for i in range(size):
 
 layerdims=[3,5,2,1]
 lr=0.01
-net1=net(1, layerdims, lr)
+loss=MSE_loss()
+activation=ReLU()
+net1=net(1, layerdims, loss, activation , lr)
 
 net1.forward2(dataset[1][0])
 
