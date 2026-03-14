@@ -280,14 +280,14 @@ class net:
                 for k in range(len(cweights[j])):
                     vlct=0
                     lrsize=1
-                    if wderv[j][k]!=0:
-                        lrsize=10/wderv[j][k]
-                    else:
-                        lrsize=1
-                    if veloprovided==True:
-                        vlct=0
-                    else:
-                        vlct=0
+                    #if wderv[j][k]!=0:
+                    #    lrsize=10/wderv[j][k]
+                    #else:
+                    #    lrsize=1
+                    #if veloprovided==True:
+                    #    vlct=0
+                    #else:
+                    #    vlct=0
                     cweights[j][k]-=self.lr*lrsize*wderv[j][k]+vlct
             for l in range(len(cbiases)):
                 cbiases[l]-=self.lr*bderv[l]

@@ -389,3 +389,6 @@ At that point, I would then try to find a real world problem to solve with this 
 
 
 For ease of coding, we shall use ReLU for activation, MSE for loss, and pure gradient descent for the Backpropagation, as I donno how to make an optimiser, or how exactly an optimiser works :O 
+
+EDIT: The backpropagation is not working as well as I thought it would have in the pure python example, thus, I will be trying to write an ADAM optimiser.
+This will be based on ADAM: A METHOD FOR STOCHASTIC OPTIMIZATION written by Diederik P. Kingma, University of Amsterdam, OpenAI and Jimmy Lei Ba, University of Toronto from 2015.
