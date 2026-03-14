@@ -103,6 +103,9 @@ class net:
     def __init__(self, num_inputs, layer_dims, actfn, lossfn, lr):
         self.lossfn=lossfn
         self.actfn=actfn
+        
+        
+        
         self.dimensions=layer_dims
         self.layers=[]
         for i in range(len(layer_dims)):
@@ -119,6 +122,8 @@ class net:
         for i in self.layers:
             self.weights.append(i.weights)
             self.biases.append(i.biases)
+        
+        
 
     def forward(self, inputs):
         self.buff=inputs
@@ -127,10 +132,8 @@ class net:
         for weights, biases in zip(self.weights, self.biases):
             out=[]
             
-            
             for w,b in zip(weights,biases):
                 z=0
-                
                 for m, x in zip(w, self.buff):
                     z+=m*x 
                 z+=b 
@@ -207,7 +210,121 @@ class net:
         for i in range(epochs):
             print("epoch:", i+1)
             self.train(inputs,expected)
+    def variedtrain(self, dataset, epochs):
+        for i in range(epochs):
+            print("epoch: ", i+1)
+            for j in dataset:
+                self.train(*j)
 
+
+    def optimisedtrain(self, dataset, velocity=False):
+
+        avgloss=0
+        avglossderiv=0
+        for i in dataset:
+            prediction=self.forward(i[0])
+            expectation=i[1]
+            avgloss+=self.lossfn.forward(prediction, expectation)
+            avglossderiv=self.lossfn.derive(prediction, expectation)
+        avgloss=avgloss/len(dataset)
+        avglossderiv=avglossderiv/len(dataset)
+
+        veloprovided=False
+        print(avgloss)
+        if velocity==False:
+            velocity=[0]*len(self.dimensions)
+            veloprovided=False
+        else:
+            velocity=velocity
+            veloprovided=True
+        # initialises derivative buffers as the loss derivative 
+        weightderivatives=avglossderiv
+        # this is just as the previous comment said, but technically not the right way to do it
+
+        prevadv=[1]*self.dimensions[-1]
+        for i in range(len(self.layers) -1, -1, -1):
+             
+            cweights=self.weights[i]
+            cbiases=self.biases[i]
+            coutputs=self.results[i]
+            
+            aderivative=[]
+            wderv=[]
+            bderv=[]
+            wdv=0
+            cvelo=velocity[i]
+            # checks if  current layer is last layer 
+            
+            if i == (len(self.layers)-1):
+                #if last layyer, all activation derivatives are set to 1, basically not affecting anything
+                # else the derivative is the respective derivative of the activation function
+                aderivative=[1]*len(coutputs)
+            else:
+                aderivative=self.actfn.derive(coutputs)
+            # generated derivatives for weights
+            for t in range(len(cweights)):
+                neuron_wderv=[]
+                
+                for u in range(len(cweights[t])):
+                    x=coutputs[u]
+                    dv=weightderivatives*aderivative[u]*x 
+
+                    neuron_wderv.append(dv)
+                    wdv+=dv
+                wderv.append(neuron_wderv)
+
+            for n in range(len(cbiases)):
+                bderv.append(weightderivatives*prevadv[n])
+
+            for j in range(len(cweights)):
+                for k in range(len(cweights[j])):
+                    vlct=0
+                    lrsize=1
+                    if wderv[j][k]!=0:
+                        lrsize=10/wderv[j][k]
+                    else:
+                        lrsize=1
+                    if veloprovided==True:
+                        vlct=0
+                    else:
+                        vlct=0
+                    cweights[j][k]-=self.lr*lrsize*wderv[j][k]+vlct
+            for l in range(len(cbiases)):
+                cbiases[l]-=self.lr*bderv[l]
+            weightderivatives=wdv
+
+            self.weights[i]=cweights
+            self.biases[i]=cbiases
+            prevadv=aderivative
+            velocity[i]=aderivative
+        
+        newavgloss=0
+
+        for j in dataset:
+            prediction=self.forward(j[0])
+            expectation=j[1]
+            newavgloss+=self.lossfn.forward(prediction, expectation)
+        newavgloss=newavgloss/len(dataset)
+
+        print(newavgloss)
+
+
+        
+        return velocity
+    def optvartrain(self,dataset, batchsize, epochs):
+        velocity=[]
+        numbatches=math.floor(len(dataset)/batchsize)
+
+
+        for i in range(epochs):
+            print("Epoch: ", i)
+            for j in range(numbatches):
+                bdataset=dataset[j*batchsize:(j+1)*batchsize]
+                if j==0:
+                    velocity=self.optimisedtrain(bdataset)
+                else:
+                    velocity=self.optimisedtrain(bdataset, velocity)
+  
 
 
 
@@ -257,18 +374,31 @@ for i in range(size):
     dataset.append([x,y])
 #print(dataset)
 
-layerdims=[3,5,2,1]
-lr=0.001
+layerdims=[3,3,1]
+lr=0.01
 loss=MSE_loss()
 activation=ReLU()
 net1=net(1, layerdims,activation,loss , lr)
 
-net1.forward(dataset[1][0])
+initw=net1.weights
+print(initw[-1])
+net1.optimisedtrain(dataset[3:8])
+w1=net1.weights
+print(w1[-1])
+net1.optimisedtrain(dataset[4:9])
+w2=net1.weights
 
+print(w2[-1])
+net1.optimisedtrain(dataset[5:10])
+w3=net1.weights
+print(w3[-1])
+net1.optimisedtrain(dataset[6:11])
+w4=net1.weights
+print(w4[-1])
+net1.optimisedtrain(dataset[7:12])
+w5=net1.weights
+print(w5[-1])
+net1.optimisedtrain(dataset[8:13])
+w6=net1.weights
+print(w6[-1])
 
-net1.train(*dataset[1])
-net1.train(*dataset[1])
-net1.train(*dataset[1])
-net1.train(*dataset[1])
-net1.train(*dataset[1])
-net1.train(*dataset[1])
