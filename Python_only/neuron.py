@@ -142,80 +142,14 @@ class net:
             
             if weights!=self.weights[-1]:
                 out=self.actfn.forward(out)
-                self.buff=out
                 self.results.append(out)
-            
+
+            self.buff=out
+                        
             
         
         self.outputs2=self.buff
         return self.outputs2 
-
-
-    def train(self, inputs, expected):
-        predicted=self.forward(inputs)
-        # initialises loss
-        loss=self.lossfn.forward(predicted, expected)
-        print(loss)
-        # initialises derivative buffers as the loss derivative 
-        weightderivatives=self.lossfn.derive(predicted, expected)
-        # this is just as the previous comment said, but technically not the right way to do it
-
-        prevadv=[1]*self.dimensions[-1]
-        for i in range(len(self.layers) -1, -1, -1):
-             
-            cweights=self.weights[i]
-            cbiases=self.biases[i]
-            coutputs=self.results[i]
-            
-            aderivative=[]
-            wderv=[]
-            bderv=[]
-            wdv=0
-            # checks if  current layer is last layer 
-            
-            if i == (len(self.layers)-1):
-                #if last layyer, all activation derivatives are set to 1, basically not affecting anything
-                # else the derivative is the respective derivative of the activation function
-                aderivative=[1]*len(coutputs)
-            else:
-                aderivative=self.actfn.derive(coutputs)
-            # generated derivatives for weights
-            for t in range(len(cweights)):
-                neuron_wderv=[]
-                for u in range(len(cweights[t])):
-                    x=coutputs[u]
-                    dv=weightderivatives*aderivative[u]*x 
-
-                    neuron_wderv.append(dv)
-                    wdv+=dv
-                wderv.append(neuron_wderv)
-
-            for n in range(len(cbiases)):
-                bderv.append(weightderivatives*prevadv[n])
-
-            for j in range(len(cweights)):
-                for k in range(len(cweights[j])):
-                    cweights[j][k]-=self.lr*wderv[j][k]
-            for l in range(len(cbiases)):
-                cbiases[l]-=self.lr*bderv[l]
-            weightderivatives=wdv
-
-            self.weights[i]=cweights
-            self.biases[i]=cbiases
-            prevadv=aderivative
-        newprediction=self.forward(inputs)
-        newloss=self.lossfn.forward(newprediction, expected)
-        print(newloss)
-    def repeatedtrain(self, inputs, expected, epochs):
-        for i in range(epochs):
-            print("epoch:", i+1)
-            self.train(inputs,expected)
-    def variedtrain(self, dataset, epochs):
-        for i in range(epochs):
-            print("epoch: ", i+1)
-            for j in dataset:
-                self.train(*j)
-
 
     def optimisedtrain(self, dataset, velocity=False):
 
@@ -223,7 +157,9 @@ class net:
         avglossderiv=0
         for i in dataset:
             prediction=self.forward(i[0])
+            #print("Prediction",prediction)
             expectation=i[1]
+            #print("Expectation",expectation)
             avgloss+=self.lossfn.forward(prediction, expectation)
             avglossderiv=self.lossfn.derive(prediction, expectation)
         avgloss=avgloss/len(dataset)
@@ -252,7 +188,8 @@ class net:
             wderv=[]
             bderv=[]
             wdv=0
-            cvelo=velocity[i]
+            prevelo=velocity[i]
+            cvelo=[]
             # checks if  current layer is last layer 
             
             if i == (len(self.layers)-1):
@@ -264,7 +201,6 @@ class net:
             # generated derivatives for weights
             for t in range(len(cweights)):
                 neuron_wderv=[]
-                
                 for u in range(len(cweights[t])):
                     x=coutputs[u]
                     dv=weightderivatives*aderivative[u]*x 
@@ -272,6 +208,7 @@ class net:
                     neuron_wderv.append(dv)
                     wdv+=dv
                 wderv.append(neuron_wderv)
+                cvelo.append(neuron_wderv)
 
             for n in range(len(cbiases)):
                 bderv.append(weightderivatives*prevadv[n])
@@ -280,15 +217,20 @@ class net:
                 for k in range(len(cweights[j])):
                     vlct=0
                     lrsize=1
-                    #if wderv[j][k]!=0:
-                    #    lrsize=10/wderv[j][k]
-                    #else:
-                    #    lrsize=1
-                    #if veloprovided==True:
-                    #    vlct=0
-                    #else:
-                    #    vlct=0
-                    cweights[j][k]-=self.lr*lrsize*wderv[j][k]+vlct
+                    if wderv[j][k]!=0:
+                        lrsize=1000/wderv[j][k]
+                    else:
+                        lrsize=1
+                    if veloprovided==True:
+                        vlct=prevelo[j][k]
+                    else:
+                        vlct=0
+                    #print("velo:",vlct)
+                    #print("Base lr*deriv:",self.lr*wderv[j][k])
+
+                    #print("cweight before:", cweights[j][k])
+                    cweights[j][k]-=(self.lr*lrsize*wderv[j][k]+vlct*0.9)
+                    #print("cweight after:", cweights[j][k])
             for l in range(len(cbiases)):
                 cbiases[l]-=self.lr*bderv[l]
             weightderivatives=wdv
@@ -296,13 +238,15 @@ class net:
             self.weights[i]=cweights
             self.biases[i]=cbiases
             prevadv=aderivative
-            velocity[i]=aderivative
+            velocity[i]=cvelo
         
         newavgloss=0
 
         for j in dataset:
             prediction=self.forward(j[0])
+            #print("prediction", prediction)
             expectation=j[1]
+            #print("expectation",expectation)
             newavgloss+=self.lossfn.forward(prediction, expectation)
         newavgloss=newavgloss/len(dataset)
 
@@ -315,15 +259,26 @@ class net:
         velocity=[]
         numbatches=math.floor(len(dataset)/batchsize)
 
+        changing=True
+        bchange=True 
 
         for i in range(epochs):
+            velo=velocity 
             print("Epoch: ", i)
             for j in range(numbatches):
-                bdataset=dataset[j*batchsize:(j+1)*batchsize]
-                if j==0:
-                    velocity=self.optimisedtrain(bdataset)
+                bdataset=dataset[(j*batchsize):((j+1)*batchsize)]
+                
+                if (i==0) & (j==0):
+                    velo=self.optimisedtrain(bdataset)
                 else:
-                    velocity=self.optimisedtrain(bdataset, velocity)
+                    velo=self.optimisedtrain(bdataset, velo)
+            velocity=velo
+
+
+
+
+
+                
   
 
 
@@ -375,30 +330,11 @@ for i in range(size):
 #print(dataset)
 
 layerdims=[3,3,1]
-lr=0.01
+lr=0.1
 loss=MSE_loss()
 activation=ReLU()
 net1=net(1, layerdims,activation,loss , lr)
+batch=60
+v=net1.optimisedtrain(dataset[:batch])
 
-initw=net1.weights
-print(initw[-1])
-net1.optimisedtrain(dataset[3:8])
-w1=net1.weights
-print(w1[-1])
-net1.optimisedtrain(dataset[4:9])
-w2=net1.weights
-
-print(w2[-1])
-net1.optimisedtrain(dataset[5:10])
-w3=net1.weights
-print(w3[-1])
-net1.optimisedtrain(dataset[6:11])
-w4=net1.weights
-print(w4[-1])
-net1.optimisedtrain(dataset[7:12])
-w5=net1.weights
-print(w5[-1])
-net1.optimisedtrain(dataset[8:13])
-w6=net1.weights
-print(w6[-1])
-
+net1.optvartrain(dataset, 20, 1000)
