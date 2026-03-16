@@ -17,7 +17,7 @@ class ReLU:
         else: 
             self.output=0
         return self.output 
-    def derive(self,outputs):
+    def derive(self,output):
         derivative=0
         
         if output > 0:
@@ -85,13 +85,11 @@ class neuron:
         self.bias-=bdv*self.lr
         for i in range(len(self.weights)):
             self.weights[i]-=wdv[i]*self.lr 
-        
-        # now to test
-        newprediction=self.forward(inputs)
-        newloss=self.lossfn.getloss(newprediction, expectation)
+
+        return wdv
 
     #for interoperability with layers
-    def compoundtrain(self, inputs, backprop_derivative):
+    def compoundtrain(self, inputs, prediction, backprop_derivative):
         # data is a list of the inputs, and expected outputs at index 0 and 1 respectively 
         inputs=inputs
         backpropdv=backprop_derivative
@@ -106,9 +104,11 @@ class neuron:
 
         # now, learning occurs
         self.bias-=bdv*self.lr
+        
         for i in range(len(self.weights)):
             self.weights[i]-=wdv[i]*self.lr 
         
+        return wdv
 
 
 
@@ -166,24 +166,41 @@ class layer:
         return self.outputs
 
 
-        
-    def train(self, data):
-        expectations=data[1]
-        inputs=data[0]
+    # for final layer 
+    def train(self, i_o, expectations):
+        predicted=i_o[1]
+        inputs=i_o[0]
 
-        for neuron, expected in zip(self.neurons, expectations):
-            sub_data=[inputs, expected]
-            neuron.train(sub_data)
+        lossdv=0
+        for neuron, expected, prediction in zip(self.neurons, expectations, predicted):
+            lossdv+=neuron.lossfn.derive(prediction, expected)
+        lossdv=lossdv/len(self.neurons)
+        print(lossdv)
+        backdvs=[]
+        
+        for neuron, prediction in zip(self.neurons, predicted):
+            
+            dv=neuron.compoundtrain(inputs, prediction, lossdv)
+            print("dv:", dv)
+            backdvs.append(dv)
+        return backdvs
 
 
     # Unfinished
-    def compoundtrain(self, inputs, backpropderivatives):
-        expectations=data[1]
-        inputs=data[0]
+    def compoundtrain(self, i_o, backpdv):
+        predicted=i_o[1]
+        inputs=i_o[0]
 
-        for neuron, expected in zip(self.neurons, expectations):
-            sub_data=[inputs, expected]
-            neuron.compoundtrain(sub_data)
+        
+        backdvs=[]
+        for neuron, prediction, neuron_no in zip(self.neurons, predicted, range(len(self.neurons))):
+            bpdv=0
+            for i in backpdv:
+                print(i[neuron_no])
+                bpdv+=i[neuron_no]
+            dv=neuron.compoundtrain(inputs, prediction, bpdv)
+            backdvs.append(dv)
+        return backdvs
 
 
 
@@ -201,23 +218,56 @@ for i in range(numitems2):
     dataset2.append([[x],y])
 
 
-repeats2=10
-act2=Linear()
+repeats2=1
+act2=ReLU()
 loss2=MSE()
 numinputs2=1 
-lr2=0.01
+lr2=0.001
 
 
-l1=layer(numinputs, 3, act1, loss1, lr)
+l1=layer(numinputs, 3, act2, loss1, lr)
+l2=layer(3, 3, act1, loss1, lr)
 
-print(l1.forward(dataset2[3][0]))
+o1=l1.forward(dataset2[3][0])
+o2=l2.forward(o1)
+print(o1,o2)
 
 for i in range(repeats2):
     print("Repeat:", i)
     for data in dataset2:
-        l1.train(data)
+        input=data[0]
+        output1=l1.forward(input)
+        output2=l2.forward(output1)
+        expected=data[1]
+        print("Output:",output1,output2)
+        print("expected:", expected)
 
-print(l1.forward(dataset2[3][0]),dataset2[3][1])
+        results=[input, output1, output2]
+        data1=results[1:]
+        data2=results[0:2]
+        print("data:",data1,data2)
+        backderiv=l2.train(data1, expected)
+        print("backderiv", backderiv)
+        print(l1.compoundtrain(data2, backderiv))
 
 
+o3=l1.forward(dataset2[3][0])
+o4=l2.forward(o3)
+print(o4, dataset2[3][1])
+'''
 
+
+# now we test two neurons, one after the other 
+act3=ReLU()
+loss3=MSE()
+
+l2=neuron(1, 1, act1, loss1, lr)
+l3=neuron(1, 1, act3, loss3, lr)
+
+# input -> n3 -> n2 -> output 
+input=dataset2[3][0]
+r1=l3.forward(input)
+r2=l2.forward(r1)
+composite_result=[[input],[r1],[r2]]
+
+'''
