@@ -70,7 +70,6 @@ class neuron:
         prediction=self.forward(inputs)
         expectation=data[1]
         loss=self.lossfn.getloss(prediction, expectation)
-        print(loss)
         # get derivatives
         lossdv=self.lossfn.derive(prediction, expectation)
         actdv=self.actfn.derive(prediction)
@@ -90,7 +89,27 @@ class neuron:
         # now to test
         newprediction=self.forward(inputs)
         newloss=self.lossfn.getloss(newprediction, expectation)
-        print(newloss)
+
+    #for interoperability with layers
+    def compoundtrain(self, inputs, backprop_derivative):
+        # data is a list of the inputs, and expected outputs at index 0 and 1 respectively 
+        inputs=inputs
+        backpropdv=backprop_derivative
+        actdv=self.actfn.derive(prediction)
+
+        bdv=backpropdv*actdv 
+        wdv=[]
+
+        for x in inputs:
+            dv=bdv*x 
+            wdv.append(dv)
+
+        # now, learning occurs
+        self.bias-=bdv*self.lr
+        for i in range(len(self.weights)):
+            self.weights[i]-=wdv[i]*self.lr 
+        
+
 
 
 
@@ -115,7 +134,7 @@ act1=Linear()
 loss1=MSE()
 numinputs=1 
 lr=0.01
-
+'''
 n1=neuron(numinputs, act1, loss1, lr)
 
 print(n1.forward(dataset[3][0]))
@@ -126,9 +145,79 @@ for i in range(repeats):
         n1.train(data)
 
 print(n1.forward(dataset[3][0]),dataset[3][1])
+'''
 
 
 
+
+class layer:
+    def __init__(self, numinputs, numneurons, actfn, lossfn, lr):
+
+        self.neurons=[]
+        # neurons in layer
+        for i in range(numneurons):
+            n=neuron(numinputs, actfn, lossfn, lr)
+            self.neurons.append(n)
+    def forward(self, inputs):
+        self.outputs=[]
+        for neuron in self.neurons:
+            output=neuron.forward(inputs)
+            self.outputs.append(output)
+        return self.outputs
+
+
+        
+    def train(self, data):
+        expectations=data[1]
+        inputs=data[0]
+
+        for neuron, expected in zip(self.neurons, expectations):
+            sub_data=[inputs, expected]
+            neuron.train(sub_data)
+
+
+    # Unfinished
+    def compoundtrain(self, inputs, backpropderivatives):
+        expectations=data[1]
+        inputs=data[0]
+
+        for neuron, expected in zip(self.neurons, expectations):
+            sub_data=[inputs, expected]
+            neuron.compoundtrain(sub_data)
+
+
+
+
+numitems2=20
+dataset2=[]
+def algo2(x):
+    y1=x+1
+    y2=x+2 
+    y3=x+3
+    return [y1,y2, y3] 
+for i in range(numitems2):
+    x=rand.randrange(-10,10)
+    y=algo2(x)
+    dataset2.append([[x],y])
+
+
+repeats2=10
+act2=Linear()
+loss2=MSE()
+numinputs2=1 
+lr2=0.01
+
+
+l1=layer(numinputs, 3, act1, loss1, lr)
+
+print(l1.forward(dataset2[3][0]))
+
+for i in range(repeats2):
+    print("Repeat:", i)
+    for data in dataset2:
+        l1.train(data)
+
+print(l1.forward(dataset2[3][0]),dataset2[3][1])
 
 
 
